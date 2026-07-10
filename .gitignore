@@ -1,0 +1,15 @@
+venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/raw/
+data/bronze/
+data/silver/
+data/gold/
+data/quarantine/
+logs/
+.DS_Store
+*.egg-info/
+spark-warehouse/
+derby.log
+metastore_db/
