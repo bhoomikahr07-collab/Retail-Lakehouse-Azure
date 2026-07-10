@@ -1,0 +1,32 @@
+# Environment-specific paths.
+# "local" runs the whole pipeline against ./data on the local filesystem.
+# "azure" points at real ADLS Gen2 paths, used by the Databricks job.
+
+local:
+  raw_path: "data/raw"
+  bronze_path: "data/bronze"
+  silver_path: "data/silver"
+  gold_path: "data/gold"
+  quarantine_path: "data/quarantine"
+  log_path: "logs/pipeline.log"
+
+azure:
+  raw_path: "abfss://raw@retaillakehousedl.dfs.core.windows.net/raw"
+  bronze_path: "abfss://lakehouse@retaillakehousedl.dfs.core.windows.net/bronze"
+  silver_path: "abfss://lakehouse@retaillakehousedl.dfs.core.windows.net/silver"
+  gold_path: "abfss://lakehouse@retaillakehousedl.dfs.core.windows.net/gold"
+  quarantine_path: "abfss://lakehouse@retaillakehousedl.dfs.core.windows.net/quarantine"
+  log_path: "abfss://lakehouse@retaillakehousedl.dfs.core.windows.net/logs/pipeline.log"
+
+synapse:
+  server: "retail-synapse-ws.sql.azuresynapse.net"
+  database: "retail_dw"
+  pool: "dedicated_sql_pool_1"
+  schema: "merchandising"
+
+data_quality:
+  # Rows failing any check are quarantined rather than dropped.
+  not_null_columns: ["transaction_id", "transaction_ts", "store_id", "product_id", "quantity", "unit_price"]
+  unique_columns: ["transaction_id"]
+  numeric_columns: ["quantity", "unit_price"]
+  max_quarantine_pct: 5.0   # alert if more than 5% of a batch gets quarantined
