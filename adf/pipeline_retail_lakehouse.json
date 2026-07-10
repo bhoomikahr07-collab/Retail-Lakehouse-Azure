@@ -1,0 +1,54 @@
+{
+  "name": "pl_retail_lakehouse_daily",
+  "properties": {
+    "description": "Orchestrates the bronze -> silver -> gold Databricks notebooks for the retail lakehouse, triggered after the upstream POS/ERP export lands in ADLS.",
+    "activities": [
+      {
+        "name": "Bronze_Ingest",
+        "type": "DatabricksNotebook",
+        "typeProperties": {
+          "notebookPath": "/Repos/retail-lakehouse-azure/src/bronze_ingest",
+          "baseParameters": {"env": "azure"}
+        },
+        "linkedServiceName": {"referenceName": "ls_databricks_retail_lakehouse", "type": "LinkedServiceReference"},
+        "policy": {"timeout": "0.02:00:00", "retry": 1, "retryIntervalInSeconds": 60}
+      },
+      {
+        "name": "Silver_Transform_DQ_Gate",
+        "type": "DatabricksNotebook",
+        "dependsOn": [{"activity": "Bronze_Ingest", "dependencyConditions": ["Succeeded"]}],
+        "typeProperties": {
+          "notebookPath": "/Repos/retail-lakehouse-azure/src/silver_transform",
+          "baseParameters": {"env": "azure"}
+        },
+        "linkedServiceName": {"referenceName": "ls_databricks_retail_lakehouse", "type": "LinkedServiceReference"},
+        "policy": {"timeout": "0.02:00:00", "retry": 1, "retryIntervalInSeconds": 60}
+      },
+      {
+        "name": "Gold_Transform",
+        "type": "DatabricksNotebook",
+        "dependsOn": [{"activity": "Silver_Transform_DQ_Gate", "dependencyConditions": ["Succeeded"]}],
+        "typeProperties": {
+          "notebookPath": "/Repos/retail-lakehouse-azure/src/gold_transform",
+          "baseParameters": {"env": "azure"}
+        },
+        "linkedServiceName": {"referenceName": "ls_databricks_retail_lakehouse", "type": "LinkedServiceReference"},
+        "policy": {"timeout": "0.02:00:00", "retry": 1, "retryIntervalInSeconds": 60}
+      },
+      {
+        "name": "Notify_On_High_Quarantine_Rate",
+        "type": "WebActivity",
+        "dependsOn": [{"activity": "Silver_Transform_DQ_Gate", "dependencyConditions": ["Failed"]}],
+        "typeProperties": {
+          "url": "https://prod-00.westus.logic.azure.com/workflows/<logic-app-id>/triggers/manual/paths/invoke",
+          "method": "POST",
+          "body": {
+            "pipeline": "pl_retail_lakehouse_daily",
+            "message": "Silver DQ gate failed or quarantine rate exceeded threshold — check logs/pipeline.log"
+          }
+        }
+      }
+    ],
+    "annotations": ["retail", "lakehouse", "medallion"]
+  }
+}
