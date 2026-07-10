@@ -1,0 +1,62 @@
+{
+  "name": "retail_lakehouse_bronze_to_gold",
+  "tags": {
+    "project": "retail-lakehouse-azure"
+  },
+  "job_clusters": [
+    {
+      "job_cluster_key": "lakehouse_cluster",
+      "new_cluster": {
+        "spark_version": "14.3.x-scala2.12",
+        "node_type_id": "Standard_DS3_v2",
+        "num_workers": 2,
+        "spark_conf": {
+          "spark.sql.extensions": "io.delta.sql.DeltaSparkSessionExtension",
+          "spark.sql.catalog.spark_catalog": "org.apache.spark.sql.delta.catalog.DeltaCatalog"
+        }
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "task_key": "bronze_ingest",
+      "job_cluster_key": "lakehouse_cluster",
+      "notebook_task": {
+        "notebook_path": "/Repos/retail-lakehouse-azure/src/bronze_ingest",
+        "base_parameters": { "env": "azure" }
+      },
+      "timeout_seconds": 1800,
+      "max_retries": 1
+    },
+    {
+      "task_key": "silver_transform_dq_gate",
+      "job_cluster_key": "lakehouse_cluster",
+      "depends_on": [{ "task_key": "bronze_ingest" }],
+      "notebook_task": {
+        "notebook_path": "/Repos/retail-lakehouse-azure/src/silver_transform",
+        "base_parameters": { "env": "azure" }
+      },
+      "timeout_seconds": 1800,
+      "max_retries": 1
+    },
+    {
+      "task_key": "gold_transform",
+      "job_cluster_key": "lakehouse_cluster",
+      "depends_on": [{ "task_key": "silver_transform_dq_gate" }],
+      "notebook_task": {
+        "notebook_path": "/Repos/retail-lakehouse-azure/src/gold_transform",
+        "base_parameters": { "env": "azure" }
+      },
+      "timeout_seconds": 1800,
+      "max_retries": 1
+    }
+  ],
+  "schedule": {
+    "quartz_cron_expression": "0 0 3 * * ?",
+    "timezone_id": "UTC",
+    "pause_status": "UNPAUSED"
+  },
+  "email_notifications": {
+    "on_failure": ["data-eng-team@example.com"]
+  }
+}
